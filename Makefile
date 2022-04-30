@@ -1,7 +1,7 @@
 default: app
 
 app:
-	go build -o ./build/ ./cmd/app
+	go build -o ./build/ ./cmd/main
 
 mockgen:
 	mockgen -source=./internal/app/domain/ports.go -destination=./internal/app/domain/tests/mocks/ports.go

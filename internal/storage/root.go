@@ -52,6 +52,14 @@ func (as AppStorage) GetAgentStorage(agent domain.Agent) interface{} {
 	return nil
 }
 
+func (as AppStorage) AgentSetStatus(agent *domain.Agent, status domain.AgentStatus) error {
+	return as.driver.agentSetStatus(agent, status)
+}
+
+func (as AppStorage) AgentUpdateData(agent *domain.Agent, data []byte) error {
+	return as.driver.agentUpdateData(agent, data)
+}
+
 func (as AppStorage) GetAgentExchanges(agentId int64) ([]app.ExchangeData, error) {
 	return as.driver.getAgentExchanges(agentId)
 }

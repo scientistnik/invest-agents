@@ -1,6 +1,9 @@
 package exchanges
 
-import "github.com/scientistnik/invest-agents/internal/app/domain"
+import (
+	"github.com/scientistnik/invest-agents/internal/app"
+	"github.com/scientistnik/invest-agents/internal/app/domain"
+)
 
 type ExchangeId int
 
@@ -11,6 +14,8 @@ const (
 )
 
 type AppExchange struct{}
+
+var _ app.AppExchange = (*AppExchange)(nil)
 
 func (ae AppExchange) GetExchangeByJson(exchangeId int, data []byte) domain.Exchange {
 	switch exchangeId {

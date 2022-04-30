@@ -14,6 +14,8 @@ type AppStorage interface {
 	// Agent
 	FindAgents(filter AgentFilter) ([]domain.Agent, error)
 	AgentSave(agent domain.Agent) (*domain.Agent, error)
+	AgentSetStatus(agent *domain.Agent, status domain.AgentStatus) error
+	AgentUpdateData(agent *domain.Agent, data []byte) error
 	//GetStrategyData(agentId string) []byte
 	GetAgentStorage(strategyId domain.Agent) interface{}
 	GetAgentExchanges(agentId int64) ([]ExchangeData, error)

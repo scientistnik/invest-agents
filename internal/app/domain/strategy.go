@@ -16,7 +16,10 @@ type Strategy interface {
 func GetStrategyFromJson(id StrategyId, data []byte) Strategy {
 	switch id {
 	case SimpleStratedy:
-		strategy := NewSimpleStrategyFromJson(data)
+		strategy, err := NewSimpleStrategyFromJson(data)
+		if err != nil {
+			panic(err)
+		}
 		return strategy
 	}
 

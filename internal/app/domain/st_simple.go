@@ -10,11 +10,11 @@ import (
 )
 
 type SimpleStrategy struct {
-	pair            Pair
-	baseQuality     decimal.Decimal
-	maxTrades       int
-	profitPercent   decimal.Decimal
-	farPricePercent decimal.Decimal
+	Pair            Pair            `json:"pair"`
+	BaseQuality     decimal.Decimal `json:"base_quality"`
+	MaxTrades       int             `json:"max_trades"`
+	ProfitPercent   decimal.Decimal `json:"profit_percent"`
+	FarPricePercent decimal.Decimal `json:"far_price_percent"`
 }
 
 type TradeStatus = int
@@ -46,7 +46,7 @@ type Trade struct {
 	sell   *TradeOrder
 }
 
-func ParseJSONToSimpleStrategy(_json []byte) (*SimpleStrategy, error) {
+func NewSimpleStrategyFromJson(_json []byte) (*SimpleStrategy, error) {
 	var s SimpleStrategy
 
 	err := json.Unmarshal(_json, &s)
@@ -57,12 +57,12 @@ func ParseJSONToSimpleStrategy(_json []byte) (*SimpleStrategy, error) {
 	return &s, nil
 }
 
-func NewSimpleStrategyFromJson(_json []byte) *SimpleStrategy {
-	return nil
+func SimpleStratedyToJson(s *SimpleStrategy) ([]byte, error) {
+	return json.Marshal(&s)
 }
 
 func (s *SimpleStrategy) Run(_storage interface{}, exchanges []Exchange, logger Logger) error {
-	logger.Info("Hello in Run SimpleStrategy!")
+	logger.Debug("Hello in Run SimpleStrategy!" + fmt.Sprintf(" %#v", s))
 	if len(exchanges) == 0 {
 		logger.Info("Exchanges len = 0!")
 		return nil
@@ -71,7 +71,7 @@ func (s *SimpleStrategy) Run(_storage interface{}, exchanges []Exchange, logger 
 	storage := _storage.(SimpleStorage)
 	logger.Info("new cycle" + time.Now().Format(time.RFC3339))
 
-	balances, err := exchange.Balances([]string{s.pair.BaseAsset, s.pair.QuoteAsset})
+	balances, err := exchange.Balances([]string{s.Pair.BaseAsset, s.Pair.QuoteAsset})
 	if err != nil {
 		return fmt.Errorf("balance error: %w", err)
 	}
@@ -79,17 +79,17 @@ func (s *SimpleStrategy) Run(_storage interface{}, exchanges []Exchange, logger 
 	var baseBalance Balance
 	var quoteBalance Balance
 	for _, balance := range balances {
-		if balance.Asset == s.pair.BaseAsset {
+		if balance.Asset == s.Pair.BaseAsset {
 			baseBalance = balance
 		}
 
-		if balance.Asset == s.pair.QuoteAsset {
+		if balance.Asset == s.Pair.QuoteAsset {
 			quoteBalance = balance
 		}
 	}
 
-	logger.Debug(s.pair.BaseAsset + "= " + baseBalance.Amount.String())
-	logger.Debug(s.pair.QuoteAsset + "= " + quoteBalance.Amount.String())
+	logger.Debug(s.Pair.BaseAsset + "= " + baseBalance.Amount.String())
+	logger.Debug(s.Pair.QuoteAsset + "= " + quoteBalance.Amount.String())
 
 	openOrders, err := exchange.GetOpenOrders()
 	if err != nil {
@@ -110,7 +110,7 @@ func (s *SimpleStrategy) Run(_storage interface{}, exchanges []Exchange, logger 
 	}
 
 	if len(notFinishTrades) > 0 {
-		historyOrders, err := exchange.GetHistoryOrders([]Pair{s.pair})
+		historyOrders, err := exchange.GetHistoryOrders([]Pair{s.Pair})
 		if err != nil {
 			return fmt.Errorf("get history orders error: %w", err)
 		}
@@ -135,33 +135,33 @@ func (s *SimpleStrategy) Run(_storage interface{}, exchanges []Exchange, logger 
 		}
 	}
 
-	lastPrice, err := exchange.LastPrice(s.pair)
+	lastPrice, err := exchange.LastPrice(s.Pair)
 	if err != nil {
 		return fmt.Errorf("Exchange last price error: %w", err)
 	}
 	logger.Info("current price: " + lastPrice.String())
 
 	isAvailableFunds := false
-	if quoteBalance.Amount.GreaterThan(s.baseQuality.Mul(lastPrice)) {
+	if quoteBalance.Amount.GreaterThan(s.BaseQuality.Mul(lastPrice)) {
 		isAvailableFunds = true
 	}
 
 	farPrice := true
 	for _, trade := range processedTrades {
 		farPercent := lastPrice.Sub(trade.buy.price).Div(lastPrice).Abs()
-		if farPercent.GreaterThan(s.farPricePercent) {
+		if farPercent.GreaterThan(s.FarPricePercent) {
 			farPrice = false
 			break
 		}
 	}
 
 	logger.Debug("need new order: max_trades=" + strconv.FormatBool(
-		len(processedTrades) < s.maxTrades) + ", funds=" + strconv.FormatBool(isAvailableFunds) + ", farPrice=" + strconv.FormatBool(farPrice))
+		len(processedTrades) < s.MaxTrades) + ", funds=" + strconv.FormatBool(isAvailableFunds) + ", farPrice=" + strconv.FormatBool(farPrice))
 
-	if len(processedTrades) < s.maxTrades && isAvailableFunds && farPrice {
-		logger.Info("buy: " + s.baseQuality.String())
+	if len(processedTrades) < s.MaxTrades && isAvailableFunds && farPrice {
+		logger.Info("buy: " + s.BaseQuality.String())
 
-		buyOrder, err := exchange.Buy(s.pair, s.baseQuality)
+		buyOrder, err := exchange.Buy(s.Pair, s.BaseQuality)
 		if err != nil {
 			return fmt.Errorf("exchange buy error: %w", err)
 		}
@@ -197,7 +197,7 @@ func (s *SimpleStrategy) Run(_storage interface{}, exchanges []Exchange, logger 
 	for _, trade := range sellTrades {
 		if trade.sell == nil {
 
-			fee, err := exchange.GetOrderFee(s.pair, trade.buy.amount)
+			fee, err := exchange.GetOrderFee(s.Pair, trade.buy.amount)
 			if err != nil {
 				return fmt.Errorf("exchange get order fee error, %w", err)
 			}
@@ -207,10 +207,10 @@ func (s *SimpleStrategy) Run(_storage interface{}, exchanges []Exchange, logger 
 			paidQuote := trade.buy.price.Mul(trade.buy.amount)
 
 			var paidFeeQuote decimal.Decimal
-			if trade.buy.commission.Asset == s.pair.QuoteAsset {
+			if trade.buy.commission.Asset == s.Pair.QuoteAsset {
 				paidFeeQuote = trade.buy.commission.Amount
 
-			} else if trade.buy.commission.Asset == s.pair.BaseAsset {
+			} else if trade.buy.commission.Asset == s.Pair.BaseAsset {
 				paidFeeQuote = trade.buy.commission.Amount.Mul(trade.buy.price)
 
 			} else {
@@ -219,13 +219,13 @@ func (s *SimpleStrategy) Run(_storage interface{}, exchanges []Exchange, logger 
 
 			buyPaid := decimal.Sum(paidQuote, paidFeeQuote)
 
-			profit := s.profitPercent.Mul(trade.buy.price).Mul(trade.buy.amount)
+			profit := s.ProfitPercent.Mul(trade.buy.price).Mul(trade.buy.amount)
 			futureFee := fee
 
 			sellPrice := decimal.Sum(buyPaid, profit, *futureFee).Div(trade.buy.amount)
 
 			logger.Info("sell: " + trade.buy.amount.String())
-			sellOrder, err := exchange.Sell(s.pair, quantity, sellPrice)
+			sellOrder, err := exchange.Sell(s.Pair, quantity, sellPrice)
 			if err != nil {
 				return fmt.Errorf("exchange sell error: %w", err)
 			}

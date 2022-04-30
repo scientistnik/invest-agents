@@ -11,6 +11,8 @@ type Currency struct {
 	api currencycom.RestAPI
 }
 
+var _ domain.Exchange = (*Currency)(nil)
+
 func NewCurrency(apiKey string, secret string) *Currency {
 	return &Currency{api: *currencycom.NewRestAPI(apiKey, secret, currencycom.DEFAULT_ENDPOINT)}
 }

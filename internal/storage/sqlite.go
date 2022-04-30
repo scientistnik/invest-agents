@@ -163,7 +163,13 @@ func (s SqliteDriver) agentFind(filter app.AgentFilter) ([]domain.Agent, error) 
 }
 
 func (s SqliteDriver) agentCreate(agent domain.Agent) (*domain.Agent, error) {
-	result, err := s.db.Exec("INSERT INTO agents (user_id, status, strategy_number) values (?,?,?)", agent.UserId, agent.Status, agent.StrategyId)
+	result, err := s.db.Exec(
+		"INSERT INTO agents (user_id, status, strategy_number, strategy_data) values (?,?,?,?)",
+		agent.UserId,
+		agent.Status,
+		agent.StrategyId,
+		agent.StrategyData,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -175,6 +181,20 @@ func (s SqliteDriver) agentCreate(agent domain.Agent) (*domain.Agent, error) {
 
 	agent.Id = id
 	return &agent, nil
+}
+
+func (s SqliteDriver) agentSetStatus(agent *domain.Agent, status domain.AgentStatus) error {
+	agent.Status = status
+
+	_, err := s.db.Exec("UPDATE agents set status=? where id=?", agent.Status, agent.Id)
+	return err
+}
+
+func (s SqliteDriver) agentUpdateData(agent *domain.Agent, data []byte) error {
+	agent.StrategyData = data
+
+	_, err := s.db.Exec("UPDATE agents set strategy_data=? where id=?", agent.StrategyData, agent.Id)
+	return err
 }
 
 func (s SqliteDriver) getAgentExchanges(agentId int64) ([]app.ExchangeData, error) {
