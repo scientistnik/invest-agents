@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/gobuffalo/packr/v2 v2.8.3
 	github.com/golang/mock v1.6.0
+	github.com/joho/godotenv v1.4.0
 	github.com/mattn/go-sqlite3 v1.14.12
 	github.com/rubenv/sql-migrate v1.1.1
 	github.com/scientistnik/currency.com v0.5.1

@@ -2,6 +2,7 @@ package domain
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -64,12 +65,11 @@ func SimpleStratedyToJson(s *SimpleStrategy) ([]byte, error) {
 func (s *SimpleStrategy) Run(_storage interface{}, exchanges []Exchange, logger Logger) error {
 	logger.Debug("Hello in Run SimpleStrategy!" + fmt.Sprintf(" %#v", s))
 	if len(exchanges) == 0 {
-		logger.Info("Exchanges len = 0!")
-		return nil
+		return errors.New("exchanges len != 0")
 	}
 	exchange := exchanges[0]
 	storage := _storage.(SimpleStorage)
-	logger.Info("new cycle" + time.Now().Format(time.RFC3339))
+	logger.Info("new cycle " + time.Now().Format(time.RFC3339))
 
 	balances, err := exchange.Balances([]string{s.Pair.BaseAsset, s.Pair.QuoteAsset})
 	if err != nil {
@@ -91,7 +91,7 @@ func (s *SimpleStrategy) Run(_storage interface{}, exchanges []Exchange, logger 
 	logger.Debug(s.Pair.BaseAsset + "= " + baseBalance.Amount.String())
 	logger.Debug(s.Pair.QuoteAsset + "= " + quoteBalance.Amount.String())
 
-	openOrders, err := exchange.GetOpenOrders()
+	openOrders, err := exchange.GetOpenOrders(&OrderFilter{Pairs: []Pair{s.Pair}})
 	if err != nil {
 		return fmt.Errorf("don't get open orders with error: %w", err)
 	}
@@ -118,7 +118,7 @@ func (s *SimpleStrategy) Run(_storage interface{}, exchanges []Exchange, logger 
 		for _, trade := range notFinishTrades {
 			for _, hOrder := range historyOrders {
 				if trade.sell.orderId == hOrder.Id {
-					if hOrder.Status == OrderStatusFill {
+					if hOrder.Status == FillOrderStatus {
 						trade.status = TradeStatusFinish
 						trade.sell.datetime = time.Now().Format(time.RFC3339)
 					}
@@ -177,7 +177,7 @@ func (s *SimpleStrategy) Run(_storage interface{}, exchanges []Exchange, logger 
 			},
 		}
 
-		if buyOrder.Status != OrderStatusFill {
+		if buyOrder.Status != FillOrderStatus {
 			trade.status = TradeStatusSell
 		}
 

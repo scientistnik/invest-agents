@@ -2,9 +2,15 @@ package domain
 
 import "github.com/shopspring/decimal"
 
+type OrderFilter struct {
+	Ids      []string
+	Statuses []OrderStatus
+	Pairs    []Pair
+}
+
 type Exchange interface {
 	Balances(assets []string) ([]Balance, error)
-	GetOpenOrders() ([]Order, error)
+	GetOpenOrders(filter *OrderFilter) ([]Order, error)
 	GetHistoryOrders(pairs []Pair) ([]Order, error)
 	LastPrice(pair Pair) (decimal.Decimal, error)
 	Buy(pair Pair, amount decimal.Decimal) (*Order, error)

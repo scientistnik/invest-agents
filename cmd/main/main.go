@@ -2,15 +2,26 @@ package main
 
 import (
 	"fmt"
+	"github.com/joho/godotenv"
 	"github.com/scientistnik/invest-agents/internal/app"
 	"github.com/scientistnik/invest-agents/internal/app/domain"
 	"github.com/scientistnik/invest-agents/internal/exchanges"
 	"github.com/scientistnik/invest-agents/internal/loggers"
 	"github.com/scientistnik/invest-agents/internal/storage"
 	"github.com/shopspring/decimal"
+	"os"
 )
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("Error loading .env file")
+		return
+	}
+
+	apiKey := os.Getenv("API_KEY")
+	secretKey := os.Getenv("SECRET_KEY")
+
 	appStorage, err := storage.GetSqliteAppStorage("database.db")
 	if err != nil {
 		fmt.Println("error in creation", err)
@@ -33,9 +44,25 @@ func main() {
 	}
 	fmt.Printf("User: %#v\n", user)
 
-	exchs := actions.FindUserExchanges(user, exchanges.CurrencyId)
+	exchs, err := actions.FindExchanges(app.ExchangeFilter{UserId: user.Id, ExchangeNumber: int(exchanges.CurrencyId)})
+	if err != nil {
+		fmt.Printf("error in FindExchanges: %#v\n", err)
+		return
+	}
 	if len(exchs) == 0 {
-		actions.UserAddExchange(user, exchanges.CurrencyId, []byte(""))
+		data, err := exchanges.GetCurrencyToJson(exchanges.CurrencyData{ApiKey: apiKey, Secret: secretKey})
+		if err != nil {
+			fmt.Printf("%#v\n", err)
+			return
+		}
+
+		err = actions.AddExchange(*user, int(exchanges.CurrencyId), data)
+		if err != nil {
+			fmt.Printf("%#v\n", err)
+			return
+		}
+
+		exchs, _ = actions.FindExchanges(app.ExchangeFilter{UserId: user.Id, ExchangeNumber: int(exchanges.CurrencyId)})
 	}
 
 	agents, err := actions.FindAgents(app.AgentFilter{UserId: user.Id})
@@ -56,7 +83,7 @@ func main() {
 			fmt.Printf("%#v\n", err)
 		}
 
-		agent, err = actions.AgentCreate(*user, domain.SimpleStratedy, simpleStrategyJson)
+		agent, err = actions.AgentCreate(*user, domain.SimpleStratedy, simpleStrategyJson, exchs)
 		if err != nil {
 			fmt.Printf("%#v\n", err)
 		}
@@ -66,7 +93,7 @@ func main() {
 
 	fmt.Printf("Agent: %#v\n", agent)
 
-	// actions.AgentSetStatus(agent, domain.ActiveAgentStatus)
+	actions.AgentSetStatus(agent, domain.ActiveAgentStatus)
 	// fmt.Printf("Update agent: %#v\n", agent)
 
 	// fmt.Printf("%#v\n", string(simpleStrategyJson))

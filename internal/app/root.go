@@ -27,12 +27,17 @@ func (a Actions) UserGetOrCreate(name string, links UserLinks) (*domain.User, er
 	return a.storage.UserGetOrCreate(links)
 }
 
-func (a Actions) FindUserExchanges(user domain.User, exchangeId int) []ExchangeData {
-	return nil
+type ExchangeFilter struct {
+	UserId         int64
+	ExchangeNumber int
 }
 
-func (a Actions) UserAddExchange(user domain.User, exchangeId int, data []byte) error {
-	return nil
+func (a Actions) FindExchanges(filter ExchangeFilter) ([]ExchangeData, error) {
+	return a.storage.FindExchanges(filter)
+}
+
+func (a Actions) AddExchange(user domain.User, exchangeNumber int, data []byte) error {
+	return a.storage.AddExchange(user.Id, exchangeNumber, data)
 }
 
 func (a Actions) GetUserAgents(user domain.User) ([]domain.Agent, error) {
@@ -43,8 +48,18 @@ func (a Actions) FindAgents(filter AgentFilter) ([]domain.Agent, error) {
 	return a.storage.FindAgents(filter)
 }
 
-func (a Actions) AgentCreate(user domain.User, strategyId domain.StrategyId, data []byte) (*domain.Agent, error) {
-	return a.storage.AgentSave(domain.Agent{UserId: user.Id, Status: domain.DisableAgentStatus, StrategyId: strategyId, StrategyData: data})
+func (a Actions) AgentCreate(user domain.User, strategyId domain.StrategyId, data []byte, exchanges []ExchangeData) (*domain.Agent, error) {
+	agent, err := a.storage.AgentSave(domain.Agent{UserId: user.Id, Status: domain.DisableAgentStatus, StrategyId: strategyId, StrategyData: data})
+	if err != nil {
+		return nil, err
+	}
+
+	err = a.storage.AgentAddExchange(agent, exchanges)
+	if err != nil {
+		return nil, err
+	}
+
+	return agent, err
 }
 
 func (a Actions) AgentSetStatus(agent *domain.Agent, status domain.AgentStatus) error {

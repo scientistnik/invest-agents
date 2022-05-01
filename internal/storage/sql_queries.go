@@ -6,12 +6,14 @@ const BaseSelectAgensQuery = "SELECT id, user_id, status, strategy_number, strat
 
 const SelectAgentExchangesQuery = `
 SELECT 
-	ae.exchange_id as id,
+	ue.exchange_number as id,
 	ue.data as data
 FROM agents as a 
 JOIN agent_exchange as ae 
 	ON a.id = ae.agent_id 
-JOIN user_exchange as ue
-	ON a.user_id = ue.user_id
+JOIN exchanges as ue
+	ON ae.exchange_id = ue.id
 WHERE a.id = ?
 `
+
+const SelectUserExchangesQuery = "SELECT id, data from exchanges"

@@ -12,23 +12,23 @@ CREATE TABLE IF NOT EXISTS agents (
   strategy_data JSON
 );
 
-CREATE TABLE IF NOT EXISTS agent_exchange (
-  id INTEGER NOT NULL PRIMARY KEY,
-  agent_id INTEGER REFERENCES agents,
-  exchange_id INTEGER NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS user_exchange (
+CREATE TABLE IF NOT EXISTS exchanges (
   id INTEGER NOT NULL PRIMARY KEY,
   name VARCHAR(16),
   data JSON,
   user_id INTEGER REFERENCES users,
-  exchange_id INTEGER NOT NULL
+  exchange_number INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS agent_exchange (
+  id INTEGER NOT NULL PRIMARY KEY,
+  agent_id INTEGER REFERENCES agents,
+  exchange_id INTEGER REFERENCES exchanges
 );
 
 
 -- +migrate Down
 DROP TABLE users;
 DROP TABLE agents;
+DROP TABLE exchanges;
 DROP TABLE agent_exchange;
-DROP TABLE user_exchange;

@@ -20,7 +20,11 @@ var _ app.AppExchange = (*AppExchange)(nil)
 func (ae AppExchange) GetExchangeByJson(exchangeId int, data []byte) domain.Exchange {
 	switch exchangeId {
 	case int(CurrencyId):
-		return GetCurrencyByJson(data)
+		exch, err := GetCurrencyFromJson(data)
+		if err != nil {
+			return nil
+		}
+		return exch
 	}
 	return nil
 }

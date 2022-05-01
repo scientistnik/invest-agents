@@ -73,6 +73,7 @@ func (s SqliteDriver) userGetOrCreate(links app.UserLinks) (*domain.User, error)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	user := domain.User{}
 	userCount := 0
@@ -204,6 +205,7 @@ func (s SqliteDriver) getAgentExchanges(agentId int64) ([]app.ExchangeData, erro
 	if err != nil {
 		return nil, fmt.Errorf("error in getAgentExchanges (query): %w", err)
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		exchange := app.ExchangeData{}
@@ -216,4 +218,80 @@ func (s SqliteDriver) getAgentExchanges(agentId int64) ([]app.ExchangeData, erro
 	}
 
 	return exchanges, nil
+}
+
+func (s SqliteDriver) findExchanges(filter app.ExchangeFilter) ([]app.ExchangeData, error) {
+	exchanges := []app.ExchangeData{}
+
+	query := SelectUserExchangesQuery
+
+	predicats := []string{}
+	queryArgs := []interface{}{}
+
+	if filter.UserId != 0 {
+		predicats = append(predicats, "(user_id=?)")
+		queryArgs = append(queryArgs, filter.UserId)
+	}
+
+	if filter.ExchangeNumber != 0 {
+		predicats = append(predicats, "(exchange_number=?)")
+		queryArgs = append(queryArgs, filter.ExchangeNumber)
+	}
+
+	if len(predicats) > 0 {
+		query += " where "
+		for index, predicat := range predicats {
+			if index != 0 {
+				query += " and "
+			}
+			query += predicat
+		}
+	}
+
+	rows, err := s.db.Query(query, queryArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("error in filterExchanges (query): %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		exchange := app.ExchangeData{}
+		err = rows.Scan(&exchange.Id, &exchange.Data)
+		if err != nil {
+			return nil, fmt.Errorf("error in getAgentExchanges (scan row): %w", err)
+		}
+
+		exchanges = append(exchanges, exchange)
+	}
+
+	return exchanges, nil
+}
+
+func (s SqliteDriver) addExchange(userId int64, exchangeNumber int, data []byte) error {
+	_, err := s.db.Exec(
+		"INSERT INTO exchanges (user_id, exchange_number, data) values (?,?,?)",
+		userId,
+		exchangeNumber,
+		data,
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s SqliteDriver) agentAddExchange(agent *domain.Agent, exchanges []app.ExchangeData) error {
+	for _, exchange := range exchanges {
+		_, err := s.db.Exec(
+			"INSERT INTO agent_exchange (agent_id, exchange_id) values (?,?)",
+			agent.Id,
+			exchange.Id,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

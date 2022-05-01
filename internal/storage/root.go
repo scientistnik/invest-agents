@@ -63,3 +63,15 @@ func (as AppStorage) AgentUpdateData(agent *domain.Agent, data []byte) error {
 func (as AppStorage) GetAgentExchanges(agentId int64) ([]app.ExchangeData, error) {
 	return as.driver.getAgentExchanges(agentId)
 }
+
+func (as AppStorage) FindExchanges(filter app.ExchangeFilter) ([]app.ExchangeData, error) {
+	return as.driver.findExchanges(filter)
+}
+
+func (as AppStorage) AddExchange(userId int64, exchangeNumber int, data []byte) error {
+	return as.driver.addExchange(userId, exchangeNumber, data)
+}
+
+func (as AppStorage) AgentAddExchange(agent *domain.Agent, exchanges []app.ExchangeData) error {
+	return as.driver.agentAddExchange(agent, exchanges)
+}

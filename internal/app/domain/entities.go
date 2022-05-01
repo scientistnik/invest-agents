@@ -29,8 +29,10 @@ type User struct {
 type OrderStatus = int
 
 const (
-	_                           = iota
-	OrderStatusFill OrderStatus = iota
+	_                               = iota
+	PendingOrderStatus  OrderStatus = iota
+	FillOrderStatus     OrderStatus = iota
+	CanceledOrderStatus OrderStatus = iota
 )
 
 type Order struct {
@@ -38,5 +40,6 @@ type Order struct {
 	Status     OrderStatus
 	Price      decimal.Decimal
 	Amount     decimal.Decimal
+	Pair       Pair
 	Commission Balance
 }

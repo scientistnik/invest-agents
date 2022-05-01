@@ -16,4 +16,7 @@ type Driver interface {
 	agentSetStatus(agent *domain.Agent, status domain.AgentStatus) error
 	agentUpdateData(agent *domain.Agent, data []byte) error
 	getAgentExchanges(agentId int64) ([]app.ExchangeData, error)
+	findExchanges(filter app.ExchangeFilter) ([]app.ExchangeData, error)
+	addExchange(userId int64, exchangeNumber int, data []byte) error
+	agentAddExchange(agent *domain.Agent, exchanges []app.ExchangeData) error
 }

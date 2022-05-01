@@ -19,6 +19,9 @@ type AppStorage interface {
 	//GetStrategyData(agentId string) []byte
 	GetAgentStorage(strategyId domain.Agent) interface{}
 	GetAgentExchanges(agentId int64) ([]ExchangeData, error)
+	FindExchanges(filter ExchangeFilter) ([]ExchangeData, error)
+	AddExchange(userId int64, exchangeNumber int, data []byte) error
+	AgentAddExchange(agent *domain.Agent, exchanges []ExchangeData) error
 }
 
 type AppExchange interface {
