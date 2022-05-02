@@ -52,6 +52,10 @@ func convertPairStringToStruct(symbol string) domain.Pair {
 	return domain.Pair{BaseAsset: assets[0], QuoteAsset: assets[1]}
 }
 
+func convertPairStructToString(pair domain.Pair) string {
+	return pair.BaseAsset + "/" + pair.QuoteAsset
+}
+
 func (c *Currency) Balances(assets []string) ([]domain.Balance, error) {
 	res, err := c.api.AccountInfo(&currencycom.AccountRequest{ShowZeroBalance: true})
 	if err != nil {
@@ -165,21 +169,146 @@ func (c *Currency) GetOpenOrders(filter *domain.OrderFilter) ([]domain.Order, er
 }
 
 func (c *Currency) GetHistoryOrders(pairs []domain.Pair) ([]domain.Order, error) {
-	return nil, nil
+	var filter currencycom.AllMyTradesRequest
+	if len(pairs) == 1 {
+		filter = currencycom.AllMyTradesRequest{Symbol: convertPairStructToString(pairs[0])}
+	}
+
+	trades, err := c.api.ListOfTrades(&filter)
+	if err != nil {
+		return nil, err
+	}
+
+	var orders []domain.Order
+	for _, trade := range trades {
+
+		if len(pairs) > 1 {
+			excludeTrade := true
+
+			for _, pair := range pairs {
+				if convertPairStructToString(pair) == trade.Symbol {
+					excludeTrade = false
+					break
+				}
+			}
+
+			if excludeTrade {
+				continue
+			}
+		}
+
+		pair := convertPairStringToStruct(trade.Symbol)
+
+		price, err := decimal.NewFromString(trade.Price)
+		if err != nil {
+			return nil, err
+		}
+
+		amount, err := decimal.NewFromString(trade.Qty)
+		if err != nil {
+			return nil, err
+		}
+
+		comission, err := decimal.NewFromString(trade.Commission)
+		if err != nil {
+			return nil, err
+		}
+
+		orders = append(orders, domain.Order{
+			Id:         trade.Id,
+			Status:     domain.FillOrderStatus,
+			Price:      price,
+			Amount:     amount,
+			Pair:       pair,
+			Commission: domain.Balance{Asset: trade.CommissionAsset, Amount: comission},
+		})
+	}
+
+	return orders, nil
 }
 
 func (c *Currency) LastPrice(pair domain.Pair) (decimal.Decimal, error) {
-	return decimal.New(0, 0), nil
+	ticker, err := currencycom.PriceChange(&currencycom.BySymbolRequest{Symbol: convertPairStructToString(pair)})
+	if err != nil {
+		return decimal.New(0, 0), err
+	}
+
+	return decimal.NewFromString(ticker.LastPrice)
 }
 
 func (c *Currency) Buy(pair domain.Pair, amount decimal.Decimal) (*domain.Order, error) {
-	return nil, nil
+	quantity, _ := amount.Float64()
+
+	result, err := c.api.CreateOrder(&currencycom.CreateOrderRequest{
+		Symbol:   convertPairStructToString(pair),
+		Quantity: quantity,
+		Type:     "MARKET",
+		Side:     "BUY",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	price, err := decimal.NewFromString(result.Price)
+	if err != nil {
+		return nil, err
+	}
+
+	executedQty, err := decimal.NewFromString(result.ExecutedQty)
+	if err != nil {
+		return nil, err
+	}
+
+	order := domain.Order{
+		Id:     result.OrderId,
+		Status: domain.PendingOrderStatus,
+		Price:  price,
+		Amount: executedQty,
+		Pair:   convertPairStringToStruct(result.Symbol),
+		//Commission: 0,
+	}
+
+	return &order, nil
 }
 
 func (c *Currency) Sell(pair domain.Pair, amount decimal.Decimal, price decimal.Decimal) (*domain.Order, error) {
-	return nil, nil
+	quantity, _ := amount.Float64()
+	floatPrice, _ := price.Float64()
+
+	result, err := c.api.CreateOrder(&currencycom.CreateOrderRequest{
+		Symbol:   convertPairStructToString(pair),
+		Quantity: quantity,
+		Type:     "LIMIT",
+		Side:     "SELL",
+		Price:    floatPrice,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	resPrice, err := decimal.NewFromString(result.Price)
+	if err != nil {
+		return nil, err
+	}
+
+	executedQty, err := decimal.NewFromString(result.ExecutedQty)
+	if err != nil {
+		return nil, err
+	}
+
+	order := domain.Order{
+		Id:     result.OrderId,
+		Status: domain.PendingOrderStatus,
+		Price:  resPrice,
+		Amount: executedQty,
+		Pair:   convertPairStringToStruct(result.Symbol),
+		//Commission: 0,
+	}
+
+	return &order, nil
 }
 
 func (c *Currency) GetOrderFee(pair domain.Pair, amount decimal.Decimal) (*decimal.Decimal, error) {
-	return nil, nil
+	fee, err := decimal.NewFromString("0.02")
+	return &fee, err
 }
