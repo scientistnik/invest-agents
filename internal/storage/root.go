@@ -46,7 +46,7 @@ func (as AppStorage) AgentSave(agent domain.Agent) (*domain.Agent, error) {
 func (as AppStorage) GetAgentStorage(agent domain.Agent) interface{} {
 	switch agent.StrategyId {
 	case domain.SimpleStratedy:
-		return SimpleStorage{agent: agent}
+		return SimpleStorage{agent: agent, db: as.driver.getDB()}
 	}
 
 	return nil

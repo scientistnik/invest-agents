@@ -42,7 +42,7 @@ func main() {
 		fmt.Printf("error in userGetOrCreate: %#v\n", err)
 		return
 	}
-	fmt.Printf("User: %#v\n", user)
+	//fmt.Printf("User: %#v\n", user)
 
 	exchs, err := actions.FindExchanges(app.ExchangeFilter{UserId: user.Id, ExchangeNumber: int(exchanges.CurrencyId)})
 	if err != nil {
@@ -91,7 +91,7 @@ func main() {
 		agent = &agents[0]
 	}
 
-	fmt.Printf("Agent: %#v\n", agent)
+	//fmt.Printf("Agent: %#v\n", agent)
 
 	actions.AgentSetStatus(agent, domain.ActiveAgentStatus)
 	// fmt.Printf("Update agent: %#v\n", agent)

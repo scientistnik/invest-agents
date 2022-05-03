@@ -68,6 +68,10 @@ func (s SqliteDriver) migrateRollDown() error {
 	return nil
 }
 
+func (s SqliteDriver) getDB() *sql.DB {
+	return s.db
+}
+
 func (s SqliteDriver) userGetOrCreate(links app.UserLinks) (*domain.User, error) {
 	rows, err := s.db.Query("SELECT id from users where json_extract(links, '$.telegram') = ?", links.Telegram)
 	if err != nil {

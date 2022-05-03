@@ -18,33 +18,39 @@ type SimpleStrategy struct {
 	FarPricePercent decimal.Decimal `json:"far_price_percent"`
 }
 
-type TradeStatus = int
+type SimpleTradeStatus = int
 
 const (
-	_                             = iota
-	TradeStatusBuy    TradeStatus = iota
-	TradeStatusSell   TradeStatus = iota
-	TradeStatusFinish TradeStatus = iota
+	_                                         = iota
+	SimpleTradeStatusBuy    SimpleTradeStatus = iota
+	SimpleTradeStatusSell   SimpleTradeStatus = iota
+	SimpleTradeStatusFinish SimpleTradeStatus = iota
 )
+
+type SimpleTradeFilter struct {
+	Statuses []SimpleTradeStatus
+}
 
 type SimpleStorage interface {
 	//Storage
-	GetTrades([]TradeStatus) ([]Trade, error)
-	SaveTrades(trades []Trade) error
+	GetTrades(filter *SimpleTradeFilter) ([]SimpleTrade, error)
+	SaveTrade(trade SimpleTrade) error
 }
 
-type TradeOrder struct {
-	datetime   string
-	orderId    string
-	price      decimal.Decimal
-	amount     decimal.Decimal
-	commission Balance
+type SimpleTradeOrder struct {
+	Datetime string
+	OrderId  string
+	Price    decimal.Decimal
+	//amount     decimal.Decimal
+	Commission Balance
 }
 
-type Trade struct {
-	status TradeStatus
-	buy    *TradeOrder
-	sell   *TradeOrder
+type SimpleTrade struct {
+	Id     int
+	Status SimpleTradeStatus
+	Amount decimal.Decimal
+	Buy    SimpleTradeOrder
+	Sell   SimpleTradeOrder
 }
 
 func NewSimpleStrategyFromJson(_json []byte) (*SimpleStrategy, error) {
@@ -97,14 +103,14 @@ func (s *SimpleStrategy) Run(_storage interface{}, exchanges []Exchange, logger 
 	}
 	logger.Info("open orders: " + strconv.Itoa(len(openOrders)))
 
-	trades, err := storage.GetTrades([]TradeStatus{TradeStatusBuy, TradeStatusSell})
+	trades, err := storage.GetTrades(&SimpleTradeFilter{Statuses: []SimpleTradeStatus{SimpleTradeStatusBuy, SimpleTradeStatusSell}})
 	if err != nil {
 		return fmt.Errorf("get trades error: %w", err)
 	}
 
-	notFinishTrades := []Trade{}
+	notFinishTrades := []SimpleTrade{}
 	for _, trade := range trades {
-		if trade.sell != nil {
+		if trade.Sell.OrderId != "" {
 			notFinishTrades = append(notFinishTrades, trade)
 		}
 	}
@@ -117,10 +123,10 @@ func (s *SimpleStrategy) Run(_storage interface{}, exchanges []Exchange, logger 
 
 		for _, trade := range notFinishTrades {
 			for _, hOrder := range historyOrders {
-				if trade.sell.orderId == hOrder.Id {
+				if trade.Sell.OrderId == hOrder.Id {
 					if hOrder.Status == FillOrderStatus {
-						trade.status = TradeStatusFinish
-						trade.sell.datetime = time.Now().Format(time.RFC3339)
+						trade.Status = SimpleTradeStatusFinish
+						trade.Sell.Datetime = time.Now().Format(time.RFC3339)
 					}
 					break
 				}
@@ -128,9 +134,9 @@ func (s *SimpleStrategy) Run(_storage interface{}, exchanges []Exchange, logger 
 		}
 	}
 
-	processedTrades := []Trade{}
+	processedTrades := []SimpleTrade{}
 	for _, trade := range trades {
-		if trade.status != TradeStatusFinish {
+		if trade.Status != SimpleTradeStatusFinish {
 			processedTrades = append(processedTrades, trade)
 		}
 	}
@@ -148,7 +154,7 @@ func (s *SimpleStrategy) Run(_storage interface{}, exchanges []Exchange, logger 
 
 	farPrice := true
 	for _, trade := range processedTrades {
-		farPercent := lastPrice.Sub(trade.buy.price).Div(lastPrice).Abs()
+		farPercent := lastPrice.Sub(trade.Buy.Price).Div(lastPrice).Abs()
 		if farPercent.GreaterThan(s.FarPricePercent) {
 			farPrice = false
 			break
@@ -166,52 +172,52 @@ func (s *SimpleStrategy) Run(_storage interface{}, exchanges []Exchange, logger 
 			return fmt.Errorf("exchange buy error: %w", err)
 		}
 
-		trade := Trade{
-			status: TradeStatusBuy,
-			buy: &TradeOrder{
-				orderId:    buyOrder.Id,
-				datetime:   time.Now().Format(time.RFC3339),
-				price:      buyOrder.Price,
-				amount:     buyOrder.Amount,
-				commission: buyOrder.Commission,
+		trade := SimpleTrade{
+			Status: SimpleTradeStatusBuy,
+			Amount: buyOrder.Amount,
+			Buy: SimpleTradeOrder{
+				OrderId:    buyOrder.Id,
+				Datetime:   time.Now().Format(time.RFC3339),
+				Price:      buyOrder.Price,
+				Commission: buyOrder.Commission,
 			},
 		}
 
 		if buyOrder.Status != FillOrderStatus {
-			trade.status = TradeStatusSell
+			trade.Status = SimpleTradeStatusSell
 		}
 
-		err = storage.SaveTrades([]Trade{trade})
+		err = storage.SaveTrade(trade)
 		if err != nil {
 			return fmt.Errorf("storage save trades error: %w", err)
 		}
 
-		logger.Info("bought: " + trade.buy.orderId + " price=" + trade.buy.price.String())
+		logger.Info("bought: " + trade.Buy.OrderId + " price=" + trade.Buy.Price.String())
 	}
 
-	sellTrades, err := storage.GetTrades([]TradeStatus{TradeStatusSell})
+	sellTrades, err := storage.GetTrades(&SimpleTradeFilter{Statuses: []SimpleTradeStatus{SimpleTradeStatusSell}})
 	if err != nil {
 		return fmt.Errorf("storage get trades error: %w", err)
 	}
 
 	for _, trade := range sellTrades {
-		if trade.sell == nil {
+		if trade.Sell.OrderId == "" {
 
-			fee, err := exchange.GetOrderFee(s.Pair, trade.buy.amount)
+			fee, err := exchange.GetOrderFee(s.Pair, trade.Amount)
 			if err != nil {
 				return fmt.Errorf("exchange get order fee error, %w", err)
 			}
 
-			quantity := trade.buy.amount
+			quantity := trade.Amount
 
-			paidQuote := trade.buy.price.Mul(trade.buy.amount)
+			paidQuote := trade.Buy.Price.Mul(trade.Amount)
 
 			var paidFeeQuote decimal.Decimal
-			if trade.buy.commission.Asset == s.Pair.QuoteAsset {
-				paidFeeQuote = trade.buy.commission.Amount
+			if trade.Buy.Commission.Asset == s.Pair.QuoteAsset {
+				paidFeeQuote = trade.Buy.Commission.Amount
 
-			} else if trade.buy.commission.Asset == s.Pair.BaseAsset {
-				paidFeeQuote = trade.buy.commission.Amount.Mul(trade.buy.price)
+			} else if trade.Buy.Commission.Asset == s.Pair.BaseAsset {
+				paidFeeQuote = trade.Buy.Commission.Amount.Mul(trade.Buy.Price)
 
 			} else {
 				continue
@@ -219,30 +225,29 @@ func (s *SimpleStrategy) Run(_storage interface{}, exchanges []Exchange, logger 
 
 			buyPaid := decimal.Sum(paidQuote, paidFeeQuote)
 
-			profit := s.ProfitPercent.Mul(trade.buy.price).Mul(trade.buy.amount)
+			profit := s.ProfitPercent.Mul(trade.Buy.Price).Mul(trade.Amount)
 			futureFee := fee
 
-			sellPrice := decimal.Sum(buyPaid, profit, *futureFee).Div(trade.buy.amount)
+			sellPrice := decimal.Sum(buyPaid, profit, *futureFee).Div(trade.Amount)
 
-			logger.Info("sell: " + trade.buy.amount.String())
+			logger.Info("sell: " + trade.Amount.String())
 			sellOrder, err := exchange.Sell(s.Pair, quantity, sellPrice)
 			if err != nil {
 				return fmt.Errorf("exchange sell error: %w", err)
 			}
 
-			trade.sell = &TradeOrder{
-				orderId:    sellOrder.Id,
-				amount:     sellOrder.Amount,
-				price:      sellOrder.Price,
-				datetime:   time.Now().Format(time.RFC3339),
-				commission: sellOrder.Commission,
+			trade.Sell = SimpleTradeOrder{
+				OrderId:    sellOrder.Id,
+				Price:      sellOrder.Price,
+				Datetime:   time.Now().Format(time.RFC3339),
+				Commission: sellOrder.Commission,
 			}
-			err = storage.SaveTrades([]Trade{trade})
+			err = storage.SaveTrade(trade)
 			if err != nil {
 				return fmt.Errorf("storage save trades error: %w", err)
 			}
 
-			logger.Info("selled: id=" + trade.sell.orderId)
+			logger.Info("selled: id=" + trade.Sell.OrderId)
 		}
 	}
 

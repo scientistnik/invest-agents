@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"database/sql"
 	"github.com/scientistnik/invest-agents/internal/app"
 	"github.com/scientistnik/invest-agents/internal/app/domain"
 )
@@ -10,6 +11,7 @@ type Driver interface {
 	migrateRollDown() error
 	connect() error
 	disconnect() error
+	getDB() *sql.DB
 	userGetOrCreate(links app.UserLinks) (*domain.User, error)
 	agentFind(filter app.AgentFilter) ([]domain.Agent, error)
 	agentCreate(agent domain.Agent) (*domain.Agent, error)
