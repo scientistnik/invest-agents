@@ -15,7 +15,8 @@ type Exchange interface {
 	LastPrice(pair Pair) (decimal.Decimal, error)
 	Buy(pair Pair, amount decimal.Decimal) (*Order, error)
 	Sell(pair Pair, amount decimal.Decimal, price decimal.Decimal) (*Order, error)
-	GetOrderFee(pair Pair, amount decimal.Decimal) (*decimal.Decimal, error)
+	CancelOrder(orderId string, pair Pair) error
+	GetOrderFee(pair Pair, amount decimal.Decimal, price decimal.Decimal) (Balance, error)
 }
 
 type Storage interface{}

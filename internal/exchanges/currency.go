@@ -259,13 +259,18 @@ func (c *Currency) Buy(pair domain.Pair, amount decimal.Decimal) (*domain.Order,
 		return nil, err
 	}
 
+	commission, err := c.GetOrderFee(pair, amount, price)
+	if err != nil {
+		return nil, err
+	}
+
 	order := domain.Order{
-		Id:     result.OrderId,
-		Status: domain.PendingOrderStatus,
-		Price:  price,
-		Amount: executedQty,
-		Pair:   convertPairStringToStruct(result.Symbol),
-		//Commission: 0,
+		Id:         result.OrderId,
+		Status:     domain.PendingOrderStatus,
+		Price:      price,
+		Amount:     executedQty,
+		Pair:       convertPairStringToStruct(result.Symbol),
+		Commission: commission,
 	}
 
 	return &order, nil
@@ -296,19 +301,29 @@ func (c *Currency) Sell(pair domain.Pair, amount decimal.Decimal, price decimal.
 		return nil, err
 	}
 
+	commission, err := c.GetOrderFee(pair, amount, price)
+	if err != nil {
+		return nil, err
+	}
+
 	order := domain.Order{
-		Id:     result.OrderId,
-		Status: domain.PendingOrderStatus,
-		Price:  resPrice,
-		Amount: executedQty,
-		Pair:   convertPairStringToStruct(result.Symbol),
-		//Commission: 0,
+		Id:         result.OrderId,
+		Status:     domain.PendingOrderStatus,
+		Price:      resPrice,
+		Amount:     executedQty,
+		Pair:       convertPairStringToStruct(result.Symbol),
+		Commission: commission,
 	}
 
 	return &order, nil
 }
 
-func (c *Currency) GetOrderFee(pair domain.Pair, amount decimal.Decimal) (*decimal.Decimal, error) {
-	fee, err := decimal.NewFromString("0.02")
-	return &fee, err
+func (c *Currency) CancelOrder(orderId string, pair domain.Pair) error {
+	_, err := c.api.CancelOrder(&currencycom.CancelOrderRequest{OrderId: orderId, Symbol: convertPairStructToString(pair)})
+	return err
+}
+
+func (c *Currency) GetOrderFee(pair domain.Pair, amount decimal.Decimal, price decimal.Decimal) (domain.Balance, error) {
+	fee, err := decimal.NewFromString("0.002")
+	return domain.Balance{Asset: pair.QuoteAsset, Amount: amount.Mul(price).Mul(fee).RoundUp(2)}, err
 }

@@ -102,7 +102,7 @@ func (ss SimpleStorage) GetTrades(filter *domain.SimpleTradeFilter) ([]domain.Si
 	return trades, nil
 }
 
-func (ss SimpleStorage) SaveTrade(trade domain.SimpleTrade) error {
+func (ss SimpleStorage) SaveTrade(trade *domain.SimpleTrade) error {
 	var err error
 	if trade.Id == 0 {
 		_, err = ss.db.Exec(`
