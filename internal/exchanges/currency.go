@@ -324,6 +324,6 @@ func (c *Currency) CancelOrder(orderId string, pair domain.Pair) error {
 }
 
 func (c *Currency) GetOrderFee(pair domain.Pair, amount decimal.Decimal, price decimal.Decimal) (domain.Balance, error) {
-	fee, err := decimal.NewFromString("0.002")
+	fee, err := decimal.NewFromString("0.02")
 	return domain.Balance{Asset: pair.QuoteAsset, Amount: amount.Mul(price).Mul(fee).RoundUp(2)}, err
 }

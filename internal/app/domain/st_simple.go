@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,8 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+var Version string = "v0.1.0"
+
 type SimpleStrategy struct {
 	Pair            Pair            `json:"pair"`
 	BaseQuality     decimal.Decimal `json:"base_quality"`
@@ -17,6 +20,8 @@ type SimpleStrategy struct {
 	ProfitPercent   decimal.Decimal `json:"profit_percent"`
 	FarPricePercent decimal.Decimal `json:"far_price_percent"`
 }
+
+var _ Strategy = (*SimpleStrategy)(nil)
 
 type SimpleTradeStatus = int
 
@@ -68,7 +73,7 @@ func SimpleStratedyToJson(s *SimpleStrategy) ([]byte, error) {
 	return json.Marshal(&s)
 }
 
-func (s *SimpleStrategy) Run(_storage interface{}, exchanges []Exchange, logger Logger) error {
+func (s *SimpleStrategy) Run(ctx context.Context, _storage interface{}, exchanges []Exchange, logger Logger) error {
 	storage, ok := _storage.(SimpleStorage)
 	if !ok {
 		return errors.New("bad storage type")
@@ -79,7 +84,7 @@ func (s *SimpleStrategy) Run(_storage interface{}, exchanges []Exchange, logger 
 	}
 	exchange := exchanges[0]
 
-	logger.Info("new cycle " + time.Now().Format(time.RFC3339))
+	logger.Info("new cycle " + Version)
 
 	balances, err := exchange.Balances([]string{s.Pair.BaseAsset, s.Pair.QuoteAsset})
 	if err != nil {
@@ -131,6 +136,11 @@ func (s *SimpleStrategy) Run(_storage interface{}, exchanges []Exchange, logger 
 		}
 
 		for _, hOrder := range historyOrders {
+			select {
+			case <-ctx.Done():
+				return nil
+			default:
+			}
 
 			for _, trade := range sellOpenOrders {
 				if trade.Sell.OrderId == hOrder.Id {
@@ -201,6 +211,12 @@ func (s *SimpleStrategy) Run(_storage interface{}, exchanges []Exchange, logger 
 		len(processedTrades) < s.MaxTrades) + ", funds=" + strconv.FormatBool(isAvailableFunds) + ", farPrice=" + strconv.FormatBool(farPrice))
 
 	if len(processedTrades) < s.MaxTrades && isAvailableFunds && farPrice {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+		}
+
 		logger.Info("buy: " + s.BaseQuality.String())
 
 		buyOrder, err := exchange.Buy(s.Pair, amount)
@@ -242,6 +258,12 @@ func (s *SimpleStrategy) Run(_storage interface{}, exchanges []Exchange, logger 
 				if err != nil {
 					logger.Warn(err.Error())
 					continue
+				}
+
+				select {
+				case <-ctx.Done():
+					return nil
+				default:
 				}
 
 				logger.Info("sell: " + trade.Amount.String())

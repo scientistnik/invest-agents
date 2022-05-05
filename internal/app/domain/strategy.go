@@ -1,5 +1,7 @@
 package domain
 
+import "context"
+
 type StrategyId int
 
 const (
@@ -10,7 +12,7 @@ const (
 
 type Strategy interface {
 	//NewFromJson(_json []byte) interface{}
-	Run(storage interface{}, exchanges []Exchange, logger Logger) error
+	Run(ctx context.Context, storage interface{}, exchanges []Exchange, logger Logger) error
 }
 
 func GetStrategyFromJson(id StrategyId, data []byte) Strategy {

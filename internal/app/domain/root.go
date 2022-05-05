@@ -1,5 +1,11 @@
 package domain
 
+import (
+	"context"
+	"sync"
+	"time"
+)
+
 type Repos struct {
 	Agent AgentRepo
 	//Strategy StrategyRepo
@@ -8,7 +14,9 @@ type Repos struct {
 	Logger   LoggerRepo
 }
 
-func StartAgents(repos Repos) error {
+func StartAgents(ctx context.Context, repos Repos) error {
+	var wg sync.WaitGroup
+
 	agents, err := repos.Agent.FindAgents(true)
 	if err != nil {
 		return err
@@ -23,11 +31,30 @@ func StartAgents(repos Repos) error {
 		}
 		logger := repos.Logger.New(agent.Id)
 
-		err = strategy.Run(storage, exchanges, logger)
-		if err != nil {
-			return err
-		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			workCycle := true
+
+			for workCycle {
+
+				err = strategy.Run(ctx, storage, exchanges, logger)
+				if err != nil {
+					logger.Error(err.Error())
+				}
+
+				select {
+				case <-ctx.Done():
+					workCycle = false
+				case <-time.After(60 * time.Second):
+					continue
+				}
+
+			}
+		}()
 	}
 
+	wg.Wait()
 	return nil
 }

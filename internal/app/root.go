@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"github.com/scientistnik/invest-agents/internal/app/domain"
 )
 
@@ -70,8 +71,8 @@ func (a Actions) AgentUpdateData(agent *domain.Agent, data []byte) error {
 	return a.storage.AgentUpdateData(agent, data)
 }
 
-func (a Actions) StartAgents() error {
-	return domain.StartAgents(domain.Repos{
+func (a Actions) StartAgents(ctx context.Context) error {
+	return domain.StartAgents(ctx, domain.Repos{
 		Agent:    AgentRepo{storage: &a.storage},
 		Storage:  StorageRepo{storage: &a.storage},
 		Exchange: ExchangeRepo{storage: &a.storage, exchange: &a.exchange},
