@@ -35,6 +35,8 @@ func StartAgents(ctx context.Context, repos Repos) error {
 		go func() {
 			defer wg.Done()
 
+			logger.Info("agent started")
+
 			workCycle := true
 
 			for workCycle {
@@ -52,6 +54,8 @@ func StartAgents(ctx context.Context, repos Repos) error {
 				}
 
 			}
+
+			logger.Info("agent stopped")
 		}()
 	}
 

@@ -264,9 +264,14 @@ func (c *Currency) Buy(pair domain.Pair, amount decimal.Decimal) (*domain.Order,
 		return nil, err
 	}
 
+	status := domain.PendingOrderStatus
+	if executedQty.Equal(amount) {
+		status = domain.FillOrderStatus
+	}
+
 	order := domain.Order{
 		Id:         result.OrderId,
-		Status:     domain.PendingOrderStatus,
+		Status:     status,
 		Price:      price,
 		Amount:     executedQty,
 		Pair:       convertPairStringToStruct(result.Symbol),
@@ -306,9 +311,14 @@ func (c *Currency) Sell(pair domain.Pair, amount decimal.Decimal, price decimal.
 		return nil, err
 	}
 
+	status := domain.PendingOrderStatus
+	if executedQty.Equal(amount) {
+		status = domain.FillOrderStatus
+	}
+
 	order := domain.Order{
 		Id:         result.OrderId,
-		Status:     domain.PendingOrderStatus,
+		Status:     status,
 		Price:      resPrice,
 		Amount:     executedQty,
 		Pair:       convertPairStringToStruct(result.Symbol),
@@ -324,6 +334,10 @@ func (c *Currency) CancelOrder(orderId string, pair domain.Pair) error {
 }
 
 func (c *Currency) GetOrderFee(pair domain.Pair, amount decimal.Decimal, price decimal.Decimal) (domain.Balance, error) {
-	fee, err := decimal.NewFromString("0.02")
-	return domain.Balance{Asset: pair.QuoteAsset, Amount: amount.Mul(price).Mul(fee).RoundUp(2)}, err
+	fee := decimal.NewFromFloat(0.002)
+	return domain.Balance{Asset: pair.QuoteAsset, Amount: amount.Mul(price).Mul(fee).RoundUp(2)}, nil
+}
+
+func (c *Currency) GetPairFee(pair domain.Pair) (domain.Balance, error) {
+	return domain.Balance{Asset: pair.QuoteAsset, Amount: decimal.NewFromFloat(0.002)}, nil
 }

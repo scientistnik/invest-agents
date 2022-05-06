@@ -11,7 +11,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-var Version string = "v0.1.0"
+var Version string = "v0.2.0"
 
 type SimpleStrategy struct {
 	Pair            Pair            `json:"pair"`
@@ -198,17 +198,27 @@ func (s *SimpleStrategy) Run(ctx context.Context, _storage interface{}, exchange
 		},
 	)
 
-	farPrice := true
+	var minSpread decimal.Decimal
 	for _, trade := range processedTrades {
 		farPercent := lastPrice.Sub(trade.Buy.Price).Div(lastPrice).Abs()
-		if farPercent.GreaterThan(s.FarPricePercent) {
-			farPrice = false
-			break
+		if minSpread.Equal(decimal.Decimal{}) || farPercent.LessThan(minSpread) {
+			minSpread = farPercent.RoundUp(5)
 		}
 	}
 
-	logger.Debug("need new order: max_trades=" + strconv.FormatBool(
-		len(processedTrades) < s.MaxTrades) + ", funds=" + strconv.FormatBool(isAvailableFunds) + ", farPrice=" + strconv.FormatBool(farPrice))
+	farPrice := minSpread.GreaterThan(s.FarPricePercent)
+
+	logger.Debug(fmt.Sprintf(
+		"need new order: max_trades=%t (%d<%d), funds=%t (%s), farPrice=%t (%s>%s)",
+		len(processedTrades) < s.MaxTrades,
+		len(processedTrades),
+		s.MaxTrades,
+		isAvailableFunds,
+		amount.String(),
+		farPrice,
+		minSpread.String(),
+		s.FarPricePercent.String(),
+	))
 
 	if len(processedTrades) < s.MaxTrades && isAvailableFunds && farPrice {
 		select {
@@ -218,6 +228,7 @@ func (s *SimpleStrategy) Run(ctx context.Context, _storage interface{}, exchange
 		}
 
 		logger.Info("buy: " + s.BaseQuality.String())
+		return nil
 
 		buyOrder, err := exchange.Buy(s.Pair, amount)
 		if err != nil {
@@ -266,10 +277,10 @@ func (s *SimpleStrategy) Run(ctx context.Context, _storage interface{}, exchange
 				default:
 				}
 
-				logger.Info("sell: " + trade.Amount.String())
+				logger.Info(fmt.Sprintf("sell: trade(id=%d), amount=%s, price=%s", trade.Id, trade.Amount.String(), sellPrice.String()))
 				sellOrder, err := exchange.Sell(s.Pair, trade.Amount, *sellPrice)
 				if err != nil {
-					return fmt.Errorf("exchange sell error: %w", err)
+					return fmt.Errorf("exchange sell error, trade(id=%d): %w", trade.Id, err)
 				}
 
 				trade.Sell = SimpleTradeOrder{
@@ -283,7 +294,7 @@ func (s *SimpleStrategy) Run(ctx context.Context, _storage interface{}, exchange
 					return fmt.Errorf("storage save trades error: %w", err)
 				}
 
-				logger.Info("selled: id=" + trade.Sell.OrderId)
+				logger.Info(fmt.Sprintf("selled: trade(id=%d), order(id=%s, price=%s)", trade.Id, trade.Sell.OrderId, trade.Sell.Price.String()))
 
 			} else {
 
@@ -293,7 +304,14 @@ func (s *SimpleStrategy) Run(ctx context.Context, _storage interface{}, exchange
 					continue
 				}
 
-				if trade.Sell.Price != *sellPrice {
+				if sellPrice.GreaterThan(trade.Sell.Price) {
+					logger.Info(fmt.Sprintf(
+						"cancelOrder: trade(id=%d), order(id=%s, price=%s), calc price=%s",
+						trade.Id,
+						trade.Sell.OrderId,
+						trade.Sell.Price.String(),
+						sellPrice.String(),
+					))
 					err = exchange.CancelOrder(trade.Sell.OrderId, s.Pair)
 					if err != nil {
 						logger.Warn(err.Error())
@@ -332,11 +350,6 @@ func (s *SimpleStrategy) availableFundCheck(
 }
 
 func (s *SimpleStrategy) getSellPrice(trade *SimpleTrade, exchange *Exchange) (*decimal.Decimal, error) {
-	fee, err := (*exchange).GetOrderFee(s.Pair, trade.Amount, trade.Sell.Price)
-	if err != nil {
-		return nil, fmt.Errorf("exchange get order fee error, %w", err)
-	}
-
 	paidQuote := trade.Buy.Price.Mul(trade.Amount)
 
 	var paidFeeQuote decimal.Decimal
@@ -352,9 +365,14 @@ func (s *SimpleStrategy) getSellPrice(trade *SimpleTrade, exchange *Exchange) (*
 
 	buyPaid := decimal.Sum(paidQuote, paidFeeQuote)
 
-	profit := s.ProfitPercent.Mul(trade.Buy.Price).Mul(trade.Amount)
-	futureFee := fee.Amount
+	profit := s.ProfitPercent.Mul(paidQuote)
 
-	sellPrice := decimal.Sum(buyPaid, profit, futureFee).Div(trade.Amount)
+	//fee, err := (*exchange).GetOrderFee(s.Pair, trade.Amount, trade.Sell.Price)
+	fee, err := (*exchange).GetPairFee(s.Pair)
+	if err != nil {
+		return nil, fmt.Errorf("exchange get order fee error, %w", err)
+	}
+
+	sellPrice := decimal.Sum(buyPaid, profit).Div(trade.Amount.Mul(decimal.NewFromInt(1).Sub(fee.Amount))).RoundUp(2)
 	return &sellPrice, nil
 }
