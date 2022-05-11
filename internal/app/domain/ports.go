@@ -9,6 +9,7 @@ type OrderFilter struct {
 }
 
 type Exchange interface {
+	Name() string
 	Balances(assets []string) ([]Balance, error)
 	GetOpenOrders(filter *OrderFilter) ([]Order, error)
 	GetHistoryOrders(pairs []Pair) ([]Order, error)

@@ -73,6 +73,44 @@ func SimpleStratedyToJson(s *SimpleStrategy) ([]byte, error) {
 	return json.Marshal(&s)
 }
 
+func (s SimpleStrategy) Name() string {
+	return "Simple"
+}
+
+func (s SimpleStrategy) Parameters() []StrategyParameter {
+	return []StrategyParameter{
+		StrategyParameter{
+			Type:  PairParameterType,
+			Name:  "Pair",
+			Value: s.Pair,
+		},
+		StrategyParameter{
+			Type:  BalanceParameterType,
+			Name:  "BaseQuantity",
+			Value: Balance{Asset: s.Pair.BaseAsset, Amount: s.BaseQuality},
+		},
+		StrategyParameter{
+			Type:  IntParameterType,
+			Name:  "MaxTrades",
+			Value: s.MaxTrades,
+		},
+		StrategyParameter{
+			Type:  PercentParameterType,
+			Name:  "Profit",
+			Value: s.ProfitPercent,
+		},
+		StrategyParameter{
+			Type:  PercentParameterType,
+			Name:  "FarPricePercent",
+			Value: s.FarPricePercent,
+		},
+	}
+}
+
+func (s SimpleStrategy) ValidateParameter(param StrategyParameter) bool {
+	return true
+}
+
 func (s *SimpleStrategy) Run(ctx context.Context, _storage interface{}, exchanges []Exchange, logger Logger) error {
 	storage, ok := _storage.(SimpleStorage)
 	if !ok {

@@ -1,5 +1,7 @@
 package domain
 
+import "context"
+
 type AssetAllocationStrategy struct {
 	//strategy string
 }
@@ -7,9 +9,23 @@ type AssetAllocationStrategy struct {
 type AssetAllocationStorage interface {
 }
 
-func (s *AssetAllocationStrategy) Run(storage AssetAllocationStorage, exchange Exchange, logger Logger) error {
+var _ Strategy = (*AssetAllocationStrategy)(nil)
+
+func (s AssetAllocationStrategy) Name() string {
+	return "Asset Allocation"
+}
+
+func (s AssetAllocationStrategy) Parameters() []StrategyParameter {
+	return []StrategyParameter{}
+}
+
+func (s AssetAllocationStrategy) ValidateParameter(param StrategyParameter) bool {
+	return true
+}
+
+func (s *AssetAllocationStrategy) Run(ctx context.Context, storage interface{}, exchanges []Exchange, logger Logger) error {
 	// check balance
-	balance, err := exchange.Balances(nil)
+	balance, err := exchanges[0].Balances(nil)
 	if err != nil {
 		return err
 	}

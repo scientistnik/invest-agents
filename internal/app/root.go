@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"github.com/scientistnik/invest-agents/internal/app/domain"
 )
 
@@ -14,10 +15,21 @@ type Actions struct {
 	storage  AppStorage
 	exchange AppExchange
 	logger   domain.LoggerRepo
+	repos    domain.Repos
 }
 
 func GetAppActions(storage AppStorage, exchange AppExchange, appLogger domain.LoggerRepo) *Actions {
-	return &Actions{storage: storage, exchange: exchange, logger: appLogger}
+	return &Actions{
+		storage:  storage,
+		exchange: exchange,
+		logger:   appLogger,
+		repos: domain.Repos{
+			Agent:    AgentRepo{storage: &storage},
+			Storage:  StorageRepo{storage: &storage},
+			Exchange: ExchangeRepo{storage: &storage, exchange: &exchange},
+			Logger:   appLogger,
+		},
+	}
 }
 
 type UserLinks struct {
@@ -72,10 +84,33 @@ func (a Actions) AgentUpdateData(agent *domain.Agent, data []byte) error {
 }
 
 func (a Actions) StartAgents(ctx context.Context) error {
-	return domain.StartAgents(ctx, domain.Repos{
-		Agent:    AgentRepo{storage: &a.storage},
-		Storage:  StorageRepo{storage: &a.storage},
-		Exchange: ExchangeRepo{storage: &a.storage, exchange: &a.exchange},
-		Logger:   a.logger,
-	})
+	return domain.StartAgents(ctx, a.repos)
+}
+
+type AgentInfo struct {
+	Name         string
+	StrategyName string
+	Exchanges    []string
+	Parameters   []domain.StrategyParameter
+}
+
+func (a Actions) GetAgentInfo(agent domain.Agent) *AgentInfo {
+	strategy := domain.GetStrategyFromJson(agent.StrategyId, agent.StrategyData)
+
+	exchanges, err := a.repos.Exchange.GetAgentExchanges(agent.Id)
+	if err != nil {
+		return nil
+	}
+
+	exchangeNames := []string{}
+	for _, exchange := range exchanges {
+		exchangeNames = append(exchangeNames, exchange.Name())
+	}
+
+	return &AgentInfo{
+		Name:         fmt.Sprintf("Agent %d", agent.Id),
+		StrategyName: strategy.Name(),
+		Exchanges:    exchangeNames,
+		Parameters:   strategy.Parameters(),
+	}
 }

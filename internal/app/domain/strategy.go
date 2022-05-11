@@ -11,7 +11,9 @@ const (
 )
 
 type Strategy interface {
-	//NewFromJson(_json []byte) interface{}
+	Name() string
+	Parameters() []StrategyParameter
+	ValidateParameter(StrategyParameter) bool
 	Run(ctx context.Context, storage interface{}, exchanges []Exchange, logger Logger) error
 }
 
@@ -26,4 +28,22 @@ func GetStrategyFromJson(id StrategyId, data []byte) Strategy {
 	}
 
 	return nil
+}
+
+type StrategyParameterType = int
+
+const (
+	_                    = iota
+	BoolParameterType    = iota
+	IntParameterType     = iota
+	StringParameterType  = iota
+	PercentParameterType = iota
+	PairParameterType    = iota
+	BalanceParameterType = iota
+)
+
+type StrategyParameter struct {
+	Type  StrategyParameterType
+	Name  string
+	Value interface{}
 }

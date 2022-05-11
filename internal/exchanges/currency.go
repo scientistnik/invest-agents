@@ -56,6 +56,10 @@ func convertPairStructToString(pair domain.Pair) string {
 	return pair.BaseAsset + "/" + pair.QuoteAsset
 }
 
+func (c Currency) Name() string {
+	return "currency.com"
+}
+
 func (c *Currency) Balances(assets []string) ([]domain.Balance, error) {
 	res, err := c.api.AccountInfo(&currencycom.AccountRequest{ShowZeroBalance: true})
 	if err != nil {
