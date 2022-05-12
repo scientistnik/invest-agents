@@ -11,7 +11,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-var Version string = "v0.2.1"
+var Version string = "v0.2.2"
 
 type SimpleStrategy struct {
 	Pair            Pair            `json:"pair"`
@@ -292,7 +292,12 @@ func (s *SimpleStrategy) Run(ctx context.Context, _storage interface{}, exchange
 			return fmt.Errorf("storage save trades error: %w", err)
 		}
 
-		logger.Info("bought: " + trade.Buy.OrderId + " price=" + trade.Buy.Price.String())
+		logger.Info(fmt.Sprintf(
+			"bought: trade(id=%d), order(id=%s, price=%s)",
+			trade.Id,
+			trade.Buy.OrderId,
+			trade.Buy.Price.String(),
+		))
 
 		trades = append(trades, trade)
 	}
@@ -314,7 +319,12 @@ func (s *SimpleStrategy) Run(ctx context.Context, _storage interface{}, exchange
 				default:
 				}
 
-				logger.Info(fmt.Sprintf("sell: trade(id=%d), amount=%s, price=%s", trade.Id, trade.Amount.String(), sellPrice.String()))
+				logger.Info(fmt.Sprintf(
+					"sell: trade(id=%d), amount=%s, price=%s",
+					trade.Id,
+					trade.Amount.String(),
+					sellPrice.String(),
+				))
 				sellOrder, err := exchange.Sell(s.Pair, trade.Amount, *sellPrice)
 				if err != nil {
 					return fmt.Errorf("exchange sell error, trade(id=%d): %w", trade.Id, err)
@@ -331,8 +341,12 @@ func (s *SimpleStrategy) Run(ctx context.Context, _storage interface{}, exchange
 					return fmt.Errorf("storage save trades error: %w", err)
 				}
 
-				logger.Info(fmt.Sprintf("selled: trade(id=%d), order(id=%s, price=%s)", trade.Id, trade.Sell.OrderId, trade.Sell.Price.String()))
-
+				logger.Info(fmt.Sprintf(
+					"selled: trade(id=%d), order(id=%s, price=%s)",
+					trade.Id,
+					trade.Sell.OrderId,
+					trade.Sell.Price.String(),
+				))
 			} else {
 
 				sellPrice, err := s.getSellPrice(&trade, &exchange)

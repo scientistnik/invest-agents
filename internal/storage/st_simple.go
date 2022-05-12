@@ -3,9 +3,10 @@ package storage
 import (
 	"database/sql"
 	"fmt"
+	"strings"
+
 	"github.com/scientistnik/invest-agents/internal/app/domain"
 	"github.com/shopspring/decimal"
-	"strings"
 )
 
 type SimpleStorage struct {
@@ -103,9 +104,9 @@ func (ss SimpleStorage) GetTrades(filter *domain.SimpleTradeFilter) ([]domain.Si
 }
 
 func (ss SimpleStorage) SaveTrade(trade *domain.SimpleTrade) error {
-	var err error
+	var commonError error
 	if trade.Id == 0 {
-		_, err = ss.db.Exec(`
+		res, err := ss.db.Exec(`
 		INSERT INTO st_simple_trades (
 			agent_id,
 			status,
@@ -136,8 +137,17 @@ func (ss SimpleStorage) SaveTrade(trade *domain.SimpleTrade) error {
 			trade.Sell.Commission.Amount,
 			trade.Sell.Commission.Asset,
 		)
+
+		if err != nil {
+			return err
+		}
+
+		insertId, err := res.LastInsertId()
+		trade.Id = int(insertId)
+
+		commonError = err
 	} else {
-		_, err = ss.db.Exec(`
+		_, commonError = ss.db.Exec(`
 		UPDATE st_simple_trades set
 			agent_id=?,
 			status=?,
@@ -169,8 +179,8 @@ func (ss SimpleStorage) SaveTrade(trade *domain.SimpleTrade) error {
 			trade.Id,
 		)
 	}
-	if err != nil {
-		return err
+	if commonError != nil {
+		return commonError
 	}
 
 	return nil
