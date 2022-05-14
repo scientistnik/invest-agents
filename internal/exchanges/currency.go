@@ -219,7 +219,7 @@ func (c *Currency) GetHistoryOrders(pairs []domain.Pair) ([]domain.Order, error)
 		}
 
 		orders = append(orders, domain.Order{
-			Id:         trade.Id,
+			Id:         trade.OrderId,
 			Status:     domain.FillOrderStatus,
 			Price:      price,
 			Amount:     amount,
