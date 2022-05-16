@@ -11,7 +11,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-var Version string = "v0.2.2"
+var Version string = "v0.3.0"
 
 type SimpleStrategy struct {
 	Pair            Pair            `json:"pair"`
@@ -327,7 +327,8 @@ func (s *SimpleStrategy) Run(ctx context.Context, _storage interface{}, exchange
 				))
 				sellOrder, err := exchange.Sell(s.Pair, trade.Amount, *sellPrice)
 				if err != nil {
-					return fmt.Errorf("exchange sell error, trade(id=%d): %w", trade.Id, err)
+					logger.Error(fmt.Sprintf("exchange sell error, trade(id=%d): %#v", trade.Id, err))
+					continue
 				}
 
 				trade.Sell = SimpleTradeOrder{
